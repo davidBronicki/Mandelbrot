@@ -3,8 +3,8 @@
 #include <vector>
 
 class highPrec{
-	//when exponent = 0, value = sigFigs[0] + (2**32)**-1 * sigFigs[1]...
-	//else, value = normalValue * (2**32)**exponent
+	//when exponent = 0, value = sigFigs[0] + (2^32)^-1 * sigFigs[1]...
+	//else, value = (value from above) * (2^32)^exponent
 	//negative acts as the sign bit
 	bool negative;
 	std::vector<unsigned int> sigFigs;
@@ -24,6 +24,9 @@ public:
 	highPrec& operator*=(const unsigned int& other);
 	highPrec& operator/=(const highPrec& other);
 	highPrec& operator/=(const unsigned int& other);
+	highPrec operator-() const;
+	highPrec& removeInt();
+	friend unsigned int operator%(const highPrec& base, const unsigned int& other);
 	friend bool operator<(const highPrec& base, const highPrec& other);
 	void negate();
 	double toDouble() const;
@@ -37,6 +40,7 @@ highPrec operator*(const highPrec& base, const highPrec& other);
 highPrec operator*(const highPrec& base, const unsigned int& other);
 highPrec operator/(const highPrec& base, const highPrec& other);
 highPrec operator/(const highPrec& base, const unsigned int& other);
+unsigned int operator%(const highPrec& base, const unsigned int& other);
 bool operator<(const highPrec& base, const highPrec& other);
 bool operator>(const highPrec& base, const highPrec& other);
 bool operator<=(const highPrec& base, const highPrec& other);
