@@ -15,6 +15,7 @@ public:
 	highPrec();
 	highPrec(double initialValue);
 	highPrec(std::vector<double> precisionSum);
+	highPrec(std::string initialValue, unsigned int decimalPrecision);
 	highPrec& forcePrec(int size);
 	int getPrec() const;
 	unsigned int operator[](int index) const;
@@ -26,7 +27,9 @@ public:
 	highPrec& operator/=(const unsigned int& other);
 	highPrec operator-() const;
 	highPrec& removeInt();
+	highPrec& removeNonInt();
 	friend unsigned int operator%(const highPrec& base, const unsigned int& other);
+	friend highPrec operator%(const highPrec& base, const highPrec& other);
 	friend bool operator<(const highPrec& base, const highPrec& other);
 	void negate();
 	double toDouble() const;
@@ -41,6 +44,7 @@ highPrec operator*(const highPrec& base, const unsigned int& other);
 highPrec operator/(const highPrec& base, const highPrec& other);
 highPrec operator/(const highPrec& base, const unsigned int& other);
 unsigned int operator%(const highPrec& base, const unsigned int& other);
+highPrec operator%(const highPrec& base, const highPrec& other);
 bool operator<(const highPrec& base, const highPrec& other);
 bool operator>(const highPrec& base, const highPrec& other);
 bool operator<=(const highPrec& base, const highPrec& other);

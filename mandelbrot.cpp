@@ -205,8 +205,8 @@ void help(){
 	print("flagname/fn, count & type, description");
 	print("");
 	print("name/n, n strings, spec file name");
-	print("xPos/x, n floats, spec x position");
-	print("yPos/y, n floats, spec y position");
+	print("xPos/x, 1 float, spec x position");
+	print("yPos/y, 1 float, spec y position");
 	print("radius/r, 1 float, spec radius to sample");
 	print("width/w, 1 int, spec image width in pixels");
 	print("recursion/rd/d, 1 int, spec recursion depth");
@@ -219,8 +219,8 @@ void help(){
 int main(int argc, char** argv){
 
 	arguments::argumentsHandler handler;
-	handler.addFlag({"xPos", "x"}, vector<double>{0.0}, -1);
-	handler.addFlag({"yPos", "y"}, vector<double>{0.0}, -1);
+	handler.addFlag({"xPos", "x"}, vector<string>{"0"}, 1);
+	handler.addFlag({"yPos", "y"}, vector<string>{"0"}, 1);
 	handler.addFlag({"name", "n"}, vector<string>{"default"}, -1);
 	handler.addFlag({"radius", "r"}, vector<double>{2.0}, 1);
 	handler.addFlag({"width", "w"}, vector<long long>{300}, 1);
@@ -235,8 +235,11 @@ int main(int argc, char** argv){
 	}
 	else{
 		try{
-			highPrec x(handler.getFlagValue("x").operator vector<double>());
-			highPrec y(handler.getFlagValue("y").operator vector<double>());
+			string tempString = (string)(handler.getFlagValue("x"));
+			highPrec x(tempString, tempString.length() + 5);
+			tempString = (string)(handler.getFlagValue("y"));
+			highPrec y(tempString, tempString.length() + 5);
+			y.negate();
 			double r = handler.getFlagValue("r");
 			string name = handler.getFlagValue("name");
 			int imageWidth = (long long)(handler.getFlagValue("width"));
@@ -244,18 +247,7 @@ int main(int argc, char** argv){
 			vector<char> data = mandelbrot(x, y, r,
 				imageWidth, recursionDepth, handler.isFlagCalled("exact"));
 			if (handler.isFlagCalled("grid")){
-				placeVerticalLine(buildColor(127), data,
-					imageWidth / 4, imageWidth, imageWidth);
-				placeHorizontalLine(buildColor(127), data,
-					imageWidth / 4, imageWidth, imageWidth);
-				placeVerticalLine(buildColor(127), data,
-					imageWidth * 3 / 4, imageWidth, imageWidth);
-				placeHorizontalLine(buildColor(127), data,
-					imageWidth * 3 / 4, imageWidth, imageWidth);
-				placeVerticalLine(buildColor(0), data,
-					imageWidth / 2, imageWidth, imageWidth);
-				placeHorizontalLine(buildColor(0), data,
-					imageWidth / 2, imageWidth, imageWidth);
+				formatGridLines(data, x, y, imageWidth, r);
 			}
 			ofstream file;
 			file.open(name + ".bmp", ios::binary);

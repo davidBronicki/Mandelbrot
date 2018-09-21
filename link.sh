@@ -1,0 +1,1 @@
+g++ -std=c++17 highPrec.o argsHandler.o mandelbrot.o -o mandelbrot.exe

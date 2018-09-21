@@ -27,6 +27,61 @@ int buildColor(int greyScale){
 	return buildColor(greyScale, greyScale, greyScale);
 }
 
+class Color
+{
+	int r, g, b;
+	double a;
+public:
+	Color(int inR, int inG, int inB, int inA)
+	{
+		r = inR;
+		g = inG;
+		b = inB;
+		a = inA / 255.0;
+	}
+	Color(int inR, int inG, int inB, double inA)
+	{
+		r = inR;
+		g = inG;
+		b = inB;
+		a = inA;
+	}
+	Color(int inR, int inG, int inB) : Color(inR, inG, inB, 255){}
+	Color(int greyScale) : Color(greyScale, greyScale, greyScale){}
+	Color(int greyScale, double alpha) : Color(greyScale, greyScale, greyScale, alpha){}
+	Color(int greyScale, int alpha) : Color(greyScale, greyScale, greyScale, alpha){}
+	static Color buildFromInt(int thing)
+	{
+		int b = thing & 255;
+		thing >>= 8;
+		int g = thing & 255;
+		thing >>= 8;
+		int r = thing & 255;
+		thing >>= 8;
+		int a = thing & 255;
+		return Color(r, g, b, a);
+	}
+	operator int() const
+	{
+		int output = (int)(a * 255) & 255;
+		output <<= 8;
+		output += r & 255;
+		output <<= 8;
+		output += g & 255;
+		output <<= 8;
+		output += b & 255;
+		return output;
+	}
+	Color paintedOn(Color other) const
+	{
+		// print(other.r << " " << sqrt(other.r * other.r * (1 - a) + r * r * a));
+		return Color(
+			sqrt(other.r * other.r * (1 - a) + r * r * a),
+			sqrt(other.g * other.g * (1 - a) + g * g * a),
+			sqrt(other.b * other.b * (1 - a) + b * b * a));
+	}
+};
+
 void pushInt(vector<char>& data, int value){
 	data.resize(data.size() + 4);
 	*(int*)(void*)&(data[data.size() - 4]) = value;

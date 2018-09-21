@@ -115,6 +115,81 @@ highPrec::highPrec(vector<double> doubleSum){
 	sigFigs = temp.sigFigs;
 	exponent = temp.exponent;
 }
+highPrec::highPrec(string initialValue, unsigned int decimalPrecision)
+{
+	if (initialValue[0] == '-')
+	{
+		negative = true;
+		initialValue.erase(initialValue.begin());//get rid of '-' in string
+	}
+
+	int zeroPoint = -1;//value to show it hasn't been found. Handles the dicimal position
+	int extraExponent = 0;//handles the "e7" part of the input
+	int i = 0;//placement in for loop (I'm lazy)
+
+	for (char item : initialValue)
+	{
+		if (item == '.') zeroPoint = i;//decimal found, mark its position in the string
+		if (item == 'e')//exponent found
+		{
+			extraExponent = stoi(initialValue.substr(i + 1, initialValue.length() - i - 1));//extract exponent
+			if (zeroPoint == -1) zeroPoint = i;//if a decimal hasn't been found, then this is the end anyway so set it
+			initialValue.erase(initialValue.begin() + i, initialValue.end());//get rid of exponent from string
+			break;
+		}
+		i++;
+	}
+	if (zeroPoint == -1) zeroPoint = initialValue.length();//no decimal and no exponent, set it to end of string
+	
+	highPrec value;//temp value for construction. at end we set our values to the values of this.
+	int targetPrecision = (int)(decimalPrecision / (32 * log10(2)) + 1) + 1;//convert from base 10 to base 2^32
+	//and round up in a couple places to counteract the floor (int) will do.
+
+	for (int i = zeroPoint - 1; i >= 0; i--)//move backward from decimal
+	{
+		int j = zeroPoint - i - 1;//find what decimal position we are in (ones vs tens vs hundreds etc)
+		highPrec temp(stod(initialValue.substr(i, 1)));//build a double from a single digit.
+		//keep in mind, this is not a binary approximation b/c there is no decimal at this point
+		for (int k = 0; k < j; k++)
+		{//no guarantee that 10^k can be held by a long long.
+			temp *= 10;
+		}
+		temp.forcePrec(targetPrecision);
+		value += temp;//addition maintains forced precision
+	}
+	for (int i = zeroPoint + 1; i < initialValue.length(); i++)//moving froward from decimal
+	{
+		int j = i - zeroPoint;//find decimal position
+		highPrec temp(stod(initialValue.substr(i, 1)));//build single digit double
+		temp.forcePrec(targetPrecision);
+		for (int k = 0; k < j; k++)
+		{//no guarantee that 10^k can be held by a long long.
+			temp /= 10;
+		}
+		temp.forcePrec(targetPrecision);
+		value += temp;
+	}
+	//handling the "x10^exponent" part is fairly straight forward
+	if (extraExponent > 0)
+	{
+		for (int i = 0; i < extraExponent; i++){
+			value *= 10;
+		}
+	}
+	else if (extraExponent < 0)
+	{
+		for (int i = 0; i < -extraExponent; i++)
+		{
+			value /= highPrec(10).forcePrec(targetPrecision);
+		}
+	}
+	value.forcePrec(targetPrecision);//We probably have too much precision and
+	//should get rid of it for the sake of performance.
+
+	//replace values we have with the values we've constructed.
+	sigFigs = value.sigFigs;
+	exponent = value.exponent;
+}
 highPrec& highPrec::forcePrec(int size){
 	while (sigFigs.size() < size){
 		//add trailing zeros until force level reached
@@ -181,10 +256,10 @@ highPrec& highPrec::operator+=(const highPrec& other){
 	int lowest = min(exponent - sigFigs.size(),
 		other.exponent - other.sigFigs.size()) + 1;//lowest significant figure
 	//add one to compensate for zero indexing (actually want (exponent - maxIndexValue))
-	int highest = max(exponent, other.exponent);//hightest significant figure
+	int highest = max(exponent, other.exponent);//highest significant figure
 	vector<unsigned int> newSigs(highest - lowest + 1);
 	//total places spanned. We're counting posts not fences so add one
-	long long rollOver = 0;
+	ull rollOver = 0;
 	for (int i = lowest; i <= highest; i++){
 		rollOver += operator[](i);
 		rollOver += other[i];
@@ -208,12 +283,12 @@ highPrec& highPrec::operator-=(const highPrec& other){
 		negate();
 		return *this;
 	}
-	unsigned long long intMask = 0xffffffff;//largest int value
+	ull intMask = 0xffffffff;//largest int value
 	int lowest = min(exponent - sigFigs.size(),
 		other.exponent - other.sigFigs.size()) + 1;//see addition
 	int highest = max(exponent, other.exponent);
 	vector<unsigned int> newSigs(highest - lowest + 1);//see addition
-	unsigned long long rollOver = 0;
+	ull rollOver = 0;
 	for (int i = lowest; i <= highest; i++){
 		rollOver += operator[](i);
 		rollOver -= other[i];
@@ -290,19 +365,7 @@ highPrec& highPrec::operator*=(const unsigned int& other){
 	return *this;
 }
 highPrec highPrec::approxRecip(unsigned int denom){
-	//approximate 1 / denom (this is a static private function)
-	if (denom == 1){
-		return highPrec(1.0);
-	}
-	else{
-		ull temp = 1ull;
-		temp <<= 32;//use the same size as our base (base 2^32)
-		temp /= denom;
-		highPrec output;
-		output.exponent = -1;
-		output.sigFigs.push_back(temp);//left most bits will automatically be removed
-		return output;
-	}
+	return highPrec(1.0 / denom);
 }
 highPrec& highPrec::operator/=(const unsigned int& other){
 	//essentially the quotient algorithm learned in elementary school
@@ -350,15 +413,15 @@ highPrec& highPrec::operator/=(const highPrec& other){
 	//on each iteration. So if x*dy < .5 initially, then the error will go as
 	//1/2 -> 1/4 -> 1/16 -> 1/256, or the log2 will go as
 	//-1 -> -2 -> -4 -> -8 ... So the iteration count needed to reach a
-	//precision of (2^32)^n is log2(log2((2^32)^n)) = log2(32*n)
+	//precision of (2^32)^n is ceiling[log2(log2((2^32)^n))] ~ log2(32*n)
 	//=log2(32) + log2(n) = 5 + log2(n) rounded up. This rounding may be done
-	//by changing to 6 + log2(n - 1) rounded down
+	//by changing to 6 + log2(n - 1) rounded down.
 	highPrec unionValue = highPrec(1.0);
 	highPrec denominatorRecip =
 		highPrec::approxRecip(other.sigFigs[0]);
 	denominatorRecip.exponent -= other.exponent;
 	int iterCount;
-	int targetPrecision = max(sigFigs.size(), other.sigFigs.size());
+	int targetPrecision = max(sigFigs.size(), other.sigFigs.size()) + 1;
 	denominatorRecip.forcePrec(targetPrecision);
 	if (targetPrecision == 1){
 		iterCount = 6;
@@ -367,6 +430,7 @@ highPrec& highPrec::operator/=(const highPrec& other){
 		iterCount = 6 + (int)(log2(targetPrecision - 1));
 	}
 	for (int i = 0; i < iterCount; i++){
+		// print(denominatorRecip.toDouble());
 		denominatorRecip += denominatorRecip * (
 			unionValue - denominatorRecip * other);
 	}
@@ -391,7 +455,7 @@ highPrec& highPrec::removeInt()
 		sigFigs.erase(sigFigs.begin());
 		exponent--;
 	}
-	if (exponent >= 0)
+	if (exponent >= 0)//means we ran out of sigfigs, nothing left
 	{
 		sigFigs[0] = 0;
 		negative = false;
@@ -400,34 +464,59 @@ highPrec& highPrec::removeInt()
 	return *this;
 }
 
-double highPrec::toDouble() const{
-	highPrec temp(*this);
-	temp.prune();
-	ull outputData = 0ull;
-	bool found = false;
-	for (int i = 0; i < temp.sigFigs.size(); i++)
-	{
-		outputData += temp.sigFigs[i];
-		if (found) break;
-		found = true;
-		outputData <<= 32;
+highPrec& highPrec::removeNonInt()
+{
+	if (exponent < 0){//means there's no int part, so nothing left
+		sigFigs = {0};
+		negative = false;
+		exponent = 0;
+		return *this;
 	}
-	int offsetCount = 0;
-	while ((outputData >> 63) == 0)
+	while (sigFigs.size() > exponent + 1)
 	{
-		outputData <<= 1;
-		offsetCount++;
-		if (offsetCount == 64) break;
+		sigFigs.erase(sigFigs.end() - 1);
+	}
+	return *this;
+}
+
+double highPrec::toDouble() const{
+	//note: sigfig is used here to refer to base 2^32 sigfigs, not base 10 or base 2 sigfigs.
+	//so each sigfig is a member of (*this).sigFigs
+
+	highPrec temp(*this);//get something safe to manipulate
+	temp.prune();//get rid of leading and trailing zeros
+	temp.forcePrec(3);//only need three sigfigs and don't want memory access violation
+	int offsetCount = 0;//only used if first 11 bits are zero (so that we need all three sigfigs)
+	if (temp.sigFigs[0] >> 21 == 0)//first 11 bits are zero
+	{
+		offsetCount = 11;
+
+		//move sigfigs over to get rid of 11 leading zeros
+		temp.sigFigs[0] <<= 11;
+		temp.sigFigs[0] |= temp.sigFigs[1] >> 21;
+		temp.sigFigs[1] <<= 11;
+		temp.sigFigs[1] |= temp.sigFigs[2] >> 21;//only place we might need third sigfig
+	}
+	ull outputData = temp.sigFigs[0];//final data. To start, grab most significant bits
+	outputData <<= 32;//move to right
+	outputData |= temp.sigFigs[1];//grab next most significant bits
+	int additionalOffset = 0;//number of leading zeros we will find
+	while (outputData >> 63 == 0)//most significant bit not in place yet
+	{
+		outputData <<= 1;//get rid of leading zero
+		additionalOffset++;//binary exponent will decrease as a result, keep track of it here
+		if (additionalOffset == 64) return 0;//means we're working with zero, so just return zero
 	}
 	outputData <<= 1;//remove implied bit
 	outputData >>= 12;//reposition significant bits
-	ull exp = 1023 + temp.exponent * 32 + 31;
-	exp -= offsetCount;
+	// print(temp.exponent - exponent << " | " << offsetCount << " | " << additionalOffset);
+	ull exp = 1023 + temp.exponent * 32 + 31;//convert base 2^32 to base 2 exponents and put in offsets
+	exp -= offsetCount + additionalOffset;
 	exp <<= 53;//remove left bit
 	exp >>= 1;//reposition
-	outputData += exp;
-	if (negative) outputData += 1ull << 63;//add sign bit;
-	return *(double*)(void*)&outputData;
+	outputData |= exp;//place in exponent
+	if (negative) outputData |= 1ull << 63;//add sign bit;
+	return *(double*)(void*)&outputData;//convert raw bits to type double and export
 }
 
 double highPrec::lowMult(double value) const{
@@ -435,6 +524,9 @@ double highPrec::lowMult(double value) const{
 }
 
 string pruneHexString(string input){
+	//I don't think this is used any more, might remove it in the future.
+
+
 	while(input.length() > 1){
 		if (input[0] == '0'){
 			input.erase(input.begin());
@@ -454,62 +546,83 @@ string pruneHexString(string input){
 
 string highPrec::toString() const{
 	string output;
+
+	highPrec temp(*this);//something we can manipulate
+	temp.removeNonInt();//we only want the int part to start with
+
+	while(temp.toDouble() != 0)
+	{
+		temp /= highPrec(10);
+		highPrec thing(temp);
+		thing.removeInt() *= 10;//leaves only ones position from temp
+		string item = to_string((int)(fabs(thing.toDouble()) + 0.5));
+		output.insert(0,item);//place at front of string
+		temp.removeNonInt();//get rid of the digit we just collected
+	}
+	if (output.length() == 0) output += "0";//preceding 0 to the decimal point
 	if (negative){
-		output += "-";
+		output.insert(0, "-");
 	}
-	if (exponent != 0){
-		output += "(16^8)^";
-		output += pruneHexString(intToHex(exponent));
-		output += " * ";
+	output += ".";
+	temp = highPrec(*this);//new thing we can manipulate
+	int maxVal = temp.sigFigs.size() * 10;//approximately how many digits
+	//our base 2^32 sigfigs represent (about 10 digits for every unsigned int)
+	temp.removeInt();//we're only interested in things after the decimal point this time
+	for (int i = 0; i < maxVal && temp.toDouble() != 0; i++)
+	{
+		temp *= 10;
+		highPrec thing(temp);
+		thing.removeNonInt();//captures digit imediately after decimal point
+		string item = to_string((int)(fabs(thing.toDouble()) + 0.5));
+		output += item;//append the new digit
+		temp.removeInt();//get rid of the digit we've collected
 	}
-	output += pruneHexString(intToHex(sigFigs[0]));
-	if (sigFigs.size()){
-		output += ".";
-	}
-	for (int i = 1; i < sigFigs.size(); i++){
-		output += intToHex(sigFigs[i]);
-	}
-	while(true){
-		if (output.back() == '0'){
-			output.pop_back();
-		}
-		else{
-			if (output.back() == '.'){
-				output.pop_back();
-			}
-			break;
-		}
-	}
+
 	return output;
 }
 
 unsigned int operator%(const highPrec& base, const unsigned int& other)
 {
 	highPrec temp(base);
-	temp.forcePrec(temp.sigFigs.size() + 2);
+	temp.removeNonInt();
+	temp.forcePrec(temp.sigFigs.size() + 1);
 	temp /= other;
-	if (temp.exponent < 0)
-	{
-		if (base < 0)
-		{
-			return (unsigned int)(base.toDouble() + other + 0.5);
-		}
-		else
-		{
-			return (unsigned int)(base.toDouble() + 0.5);
-		}
-	}
-	if (temp.sigFigs.size() - 1 <= temp.exponent) return 0;
 	temp.removeInt();
 	temp *= other;
-	if (base < 0)
-	{
-		return (unsigned int)(temp.toDouble() + other + 0.5);
-	}
-	else
-	{
-		return (unsigned int)(temp.toDouble() + 0.5);
-	}
+	return (int)(temp.toDouble() + .5);
+	// if (temp.exponent < 0)
+	// {
+	// 	if (base < 0)
+	// 	{
+	// 		return (unsigned int)(base.toDouble() + other + 0.5);
+	// 	}
+	// 	else
+	// 	{
+	// 		return (unsigned int)(base.toDouble() + 0.5);
+	// 	}
+	// }
+	// if (temp.sigFigs.size() - 1 <= temp.exponent) return 0;
+	// temp.removeInt();
+	// temp *= other;
+	// if (base < 0)
+	// {
+	// 	return (unsigned int)(temp.toDouble() + other + 0.5);
+	// }
+	// else
+	// {
+	// 	return (unsigned int)(temp.toDouble() + 0.5);
+	// }
+}
+
+highPrec operator%(const highPrec& base, const highPrec& other)
+{
+	highPrec temp(base);
+	temp.forcePrec(temp.sigFigs.size() + 1);
+	temp /= other;
+	temp.removeInt();
+	temp *= other;
+	temp.forcePrec(base.sigFigs.size());
+	return temp;
 }
 
 highPrec operator+(const highPrec& base, const highPrec& other){
@@ -539,6 +652,7 @@ highPrec operator/(const highPrec& base, const unsigned int& other){
 
 bool operator<(const highPrec& base, const highPrec& other){
 	if (base.negative == other.negative){
+		if (base.negative == true) return -other < -base;
 		if (base.exponent == other.exponent){
 			bool magLess = false;
 			int minVal = min(base.sigFigs.size(),
