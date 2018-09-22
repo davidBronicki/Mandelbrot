@@ -77,11 +77,24 @@ int perturbativeMandelbrot(
 
 vector<complex> getPerturbationVals(highPrec x, highPrec y,
 		int recursionDepth){
+	// vector<complex> output;
+	// highPrec currentX, currentY;
+	// for (int i = 0; i < recursionDepth; i++){
+	// 	output.push_back(complex(
+	// 		currentX.toDouble(), currentY.toDouble()));
+	// 	highPrec temp(currentX * currentX - currentY * currentY + x);
+	// 	currentY = currentX * currentY * 2.0 + y;
+	// 	currentX = temp;
+	// }
+	// return output;
+
 	vector<complex> output;
 	highPrec currentX, currentY;
+	highPrec cutoff(2.0);
 	for (int i = 0; i < recursionDepth; i++){
 		output.push_back(complex(
 			currentX.toDouble(), currentY.toDouble()));
+		if (currentX * currentX + currentY * currentY > cutoff) break;
 		highPrec temp(currentX * currentX - currentY * currentY + x);
 		currentY = currentX * currentY * 2.0 + y;
 		currentX = temp;
@@ -89,41 +102,41 @@ vector<complex> getPerturbationVals(highPrec x, highPrec y,
 	return output;
 }
 
-void recursiveFindAnchor(const highPrec& lowX, const highPrec& highX,
-		const highPrec& lowY, const highPrec& highY,
-		highPrec& x, highPrec& y, double dz, int& currentValue,
-		const int& mandelRecusionDepth, int findingRecursionDepth){
-	if (findingRecursionDepth == 0 ||
-		currentValue >= mandelRecusionDepth) return;
-	double angle = randomFloat(2 * PI);
-	double mag = randomFloat(dz);
-	highPrec newX(x + highPrec(mag * cos(angle)));
-	highPrec newY(y + highPrec(mag * sin(angle)));
-	newX = clamp(newX, lowX, highX);
-	newY = clamp(newY, lowY, highY);
-	int temp = highPrecMandelbrotValue(newX, newY, mandelRecusionDepth);
-	if (temp >= currentValue){
-		currentValue = temp;
-		x = newX;
-		y = newY;
-	}
-	recursiveFindAnchor(lowX, highX, lowY, highY, x, y, dz, currentValue,
-		mandelRecusionDepth, findingRecursionDepth - 1);
-}
+// void recursiveFindAnchor(const highPrec& lowX, const highPrec& highX,
+// 		const highPrec& lowY, const highPrec& highY,
+// 		highPrec& x, highPrec& y, double dz, int& currentValue,
+// 		const int& mandelRecusionDepth, int findingRecursionDepth){
+// 	if (findingRecursionDepth == 0 ||
+// 		currentValue >= mandelRecusionDepth) return;
+// 	double angle = randomFloat(2 * PI);
+// 	double mag = randomFloat(dz);
+// 	highPrec newX(x + highPrec(mag * cos(angle)));
+// 	highPrec newY(y + highPrec(mag * sin(angle)));
+// 	newX = clamp(newX, lowX, highX);
+// 	newY = clamp(newY, lowY, highY);
+// 	int temp = highPrecMandelbrotValue(newX, newY, mandelRecusionDepth);
+// 	if (temp >= currentValue){
+// 		currentValue = temp;
+// 		x = newX;
+// 		y = newY;
+// 	}
+// 	recursiveFindAnchor(lowX, highX, lowY, highY, x, y, dz, currentValue,
+// 		mandelRecusionDepth, findingRecursionDepth - 1);
+// }
 
-tuple<highPrec, highPrec, int> findAnchor(
-		highPrec x, highPrec y, double r, double dz,
-		const int& mandelRecusionDepth, int findingRecursionDepth){
-	highPrec rad(r);
-	highPrec lowX(x - rad);
-	highPrec highX(x + rad);
-	highPrec lowY(y - rad);
-	highPrec highY(y + rad);
-	int currentValue = highPrecMandelbrotValue(x, y, mandelRecusionDepth);
-	recursiveFindAnchor(lowX, highX, lowY, highY, x, y, dz, currentValue,
-		mandelRecusionDepth, findingRecursionDepth);
-	return make_tuple(x, y, currentValue);
-}
+// tuple<highPrec, highPrec, int> findAnchor(
+// 		highPrec x, highPrec y, double r, double dz,
+// 		const int& mandelRecusionDepth, int findingRecursionDepth){
+// 	highPrec rad(r);
+// 	highPrec lowX(x - rad);
+// 	highPrec highX(x + rad);
+// 	highPrec lowY(y - rad);
+// 	highPrec highY(y + rad);
+// 	int currentValue = highPrecMandelbrotValue(x, y, mandelRecusionDepth);
+// 	recursiveFindAnchor(lowX, highX, lowY, highY, x, y, dz, currentValue,
+// 		mandelRecusionDepth, findingRecursionDepth);
+// 	return make_tuple(x, y, currentValue);
+// }
 
 vector<char> mandelbrot(
 		highPrec middleX, highPrec middleY, double radius,
@@ -148,31 +161,71 @@ vector<char> mandelbrot(
 			}
 		}
 		else{
+			// print("perturbative precision used");
+			// auto anchor = findAnchor(middleX, middleY, radius, radius / 10,
+			// 	recursionDepth, max(recursionDepth,
+			// 		sampleWidth * sampleWidth / 1000));//expensive
+			// int recursionDepth = get<2>(anchor);
+			// print("recursionDepth " << recursionDepth);
+			// auto anchorX = get<0>(anchor);
+			// auto anchorY = get<1>(anchor);
+			// double offsetX = (anchorX - middleX).toDouble();
+			// double offsetY = (anchorY - middleY).toDouble();
+			// complex offset(offsetX, offsetY);
+			// vector<complex> baseValues = getPerturbationVals(
+			// 	anchorX, anchorY, recursionDepth);
+			// for (int i = 0; i < sampleWidth; i++){
+			// 	print("calculating row " << i);
+			// 	for (int j = 0; j < sampleWidth; j++){
+			// 		double x = -radius + radius * i * 2 / sampleWidth;
+			// 		double y = -radius + radius * j * 2 / sampleWidth;
+			// 		complex dc(x, y);
+			// 		colors[sampleWidth * j + i] = perturbativeMandelbrot(
+			// 			baseValues, dc - offset, recursionDepth);
+			// 	}
+			// }
+			// print("perturbative precision used");
+			// print("recursionDepth " << recursionDepth);
+
 			print("perturbative precision used");
-			auto anchor = findAnchor(middleX, middleY, radius, radius / 10,
-				recursionDepth, max(recursionDepth,
-					sampleWidth * sampleWidth / 1000));
-			recursionDepth = get<2>(anchor);
-			print("recursionDepth " << recursionDepth);
-			auto anchorX = get<0>(anchor);
-			auto anchorY = get<1>(anchor);
-			double offsetX = (anchorX - middleX).toDouble();
-			double offsetY = (anchorY - middleY).toDouble();
-			complex offset(offsetX, offsetY);
+			// auto anchor = findAnchor(middleX, middleY, radius, radius / 10,
+			// 	recursionDepth, max(recursionDepth,
+			// 		sampleWidth * sampleWidth / 1000));//expensive
+			// int recursionDepth = get<2>(anchor);
+			// print("recursionDepth " << recursionDepth);
+			highPrec anchorX(middleX);
+			highPrec anchorY(middleY);
+			double offsetX = 0;
+			double offsetY = 0;
+			complex offset(offsetY, offsetY);
+			print("reached");
 			vector<complex> baseValues = getPerturbationVals(
 				anchorX, anchorY, recursionDepth);
-			for (int i = 0; i < sampleWidth; i++){
+			print("reached");
+			for (int i = 0; i < sampleWidth; i++)
+			{
 				print("calculating row " << i);
-				for (int j = 0; j < sampleWidth; j++){
+				for (int j = 0; j < sampleWidth; j++)
+				{
 					double x = -radius + radius * i * 2 / sampleWidth;
 					double y = -radius + radius * j * 2 / sampleWidth;
 					complex dc(x, y);
-					colors[sampleWidth * j + i] = perturbativeMandelbrot(
+					int temp = perturbativeMandelbrot(
 						baseValues, dc - offset, recursionDepth);
+					if (baseValues.size() < recursionDepth && temp == baseValues.size())
+					{
+						anchorX = middleX + highPrec(x);
+						anchorY = middleY + highPrec(y);
+						offset = complex(x, y);
+						baseValues = getPerturbationVals(anchorX,
+							anchorY, recursionDepth);
+						temp = baseValues.size();
+					}
+					colors[sampleWidth * j + i] = temp;
 				}
 			}
 			print("perturbative precision used");
-			print("recursionDepth " << recursionDepth);
+			print("recursionDepth " << baseValues.size());
 		}
 	}
 	else{
