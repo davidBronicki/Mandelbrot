@@ -393,7 +393,7 @@ highPrec& highPrec::operator/=(const unsigned int& other){
 			//use trailing zeros to fill in space
 			ull quotient = overhead / other;
 			overhead -= other * quotient;
-			overhead << 32;
+			overhead <<= 32;
 			result.push_back(quotient);
 		}
 		sigFigs = result;

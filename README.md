@@ -8,11 +8,20 @@ Some notes for setting up the program.
 
 ### Prereqs
 
-Pretty simple. Just have a c++ compiler. I use g++. It was built and tested on linux but should work on windows.
+Pretty simple. Just have a c++ compiler, I use clang. It was built and tested on linux but should work on windows.
 
 ### Initial build
 
-[comp_all.sh](comp_all.sh) will do everthing for you. You can read it if you want to know what it does.
+Built with cmake. On linux, run the following to get set up:
+
+```
+mkdir path/to/build/
+cd path/to/build
+cmake path/to/source
+make
+```
+
+After this you will have an executable in the build directory called mandelbrot_search.
 
 ### Using the program
 
